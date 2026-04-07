@@ -63,33 +63,21 @@ export default function EditPage() {
 
   return (
     <main
-      className="h-screen overflow-hidden flex flex-col items-center px-6 pt-6 pb-6 gap-4"
+      className="relative h-screen overflow-hidden flex flex-col items-center px-6 pt-6 pb-6 gap-4"
       style={{ background: '#F8FAF9' }}
     >
-      {/* Header */}
-      <div
-        className="flex-shrink-0 rounded-2xl px-6 py-3 flex items-center gap-4 w-full max-w-5xl"
-        style={{ background: '#35B7FB', boxShadow: '0px 4px 16px rgba(34, 34, 34, 0.08)' }}
+      {/* Top-right controls */}
+      <button
+        onClick={handleFinishEditing}
+        disabled={imageLoading}
+        className="absolute top-4 right-4 z-10 px-4 py-2 rounded-xl text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        style={{ background: '#74C0FC' }}
+        onMouseEnter={(e) => { if (!imageLoading) e.currentTarget.style.background = '#4AABF5'; }}
+        onMouseLeave={(e) => (e.currentTarget.style.background = '#74C0FC')}
       >
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="font-bold text-base flex-1 bg-transparent outline-none placeholder-white/60"
-          style={{ color: '#F8FAF9', fontFamily: 'var(--font-inter), Inter, sans-serif' }}
-          placeholder="Game title"
-        />
-        <button
-          onClick={handleFinishEditing}
-          disabled={imageLoading}
-          className="px-4 py-2 rounded-xl text-sm font-semibold flex-shrink-0 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ background: '#F8FAF9', color: '#35B7FB' }}
-          onMouseEnter={(e) => { if (!imageLoading) e.currentTarget.style.background = '#eef1ef'; }}
-          onMouseLeave={(e) => (e.currentTarget.style.background = '#F8FAF9')}
-        >
-          {imageLoading ? 'Uploading…' : 'Finish editing'}
-        </button>
-      </div>
+        {imageLoading ? 'Uploading…' : 'Finish editing'}
+      </button>
+
 
       {/* Board / Edit question — fills all remaining space */}
       <div className="relative w-full max-w-5xl flex-1 min-h-0">

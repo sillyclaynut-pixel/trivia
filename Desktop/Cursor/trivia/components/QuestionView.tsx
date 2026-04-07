@@ -14,8 +14,8 @@ const FONT_MAX = 56; // px
 const FONT_MIN = 14; // px
 const REVEAL_TRANSITION_MS = 400;
 
-function fitFontSize(el: HTMLParagraphElement, container: HTMLDivElement) {
-  let size = FONT_MAX;
+function fitFontSize(el: HTMLParagraphElement, container: HTMLDivElement, max = FONT_MAX) {
+  let size = max;
   el.style.fontSize = `${size}px`;
   while (el.scrollHeight > container.clientHeight && size > FONT_MIN) {
     size -= 1;
@@ -26,8 +26,16 @@ function fitFontSize(el: HTMLParagraphElement, container: HTMLDivElement) {
 
 export default function QuestionView({ gameState, onDismiss, onAnswerRevealed }: Props) {
   const { categories, activeQuestion } = gameState;
+
+  const activeText = (() => {
+    if (!activeQuestion) return '';
+    const cat = categories.find((c) => c.id === activeQuestion.categoryId);
+    return cat?.questions.find((q) => q.id === activeQuestion.questionId)?.text ?? '';
+  })();
+  const fontMax = activeText.length > 200 ? 36 : activeText.length > 100 ? 48 : FONT_MAX;
+
   const [answerRevealed, setAnswerRevealed] = useState(false);
-  const [fontSize, setFontSize] = useState(FONT_MAX);
+  const [fontSize, setFontSize] = useState(fontMax);
   const textRef = useRef<HTMLParagraphElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -36,7 +44,7 @@ export default function QuestionView({ gameState, onDismiss, onAnswerRevealed }:
     const el = textRef.current;
     const container = containerRef.current;
     if (!el || !container) return;
-    setFontSize(fitFontSize(el, container));
+    setFontSize(fitFontSize(el, container, fontMax));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeQuestion?.questionId]);
 
@@ -47,7 +55,7 @@ export default function QuestionView({ gameState, onDismiss, onAnswerRevealed }:
       const el = textRef.current;
       const container = containerRef.current;
       if (!el || !container) return;
-      setFontSize(fitFontSize(el, container));
+      setFontSize(fitFontSize(el, container, fontMax));
     }, REVEAL_TRANSITION_MS + 10);
     return () => clearTimeout(timer);
   }, [answerRevealed]);
@@ -87,10 +95,7 @@ export default function QuestionView({ gameState, onDismiss, onAnswerRevealed }:
       </p>
     </div>
   ) : (
-    <div
-      className="absolute bottom-0 left-0 right-0 flex items-center justify-center"
-      style={{ height: ANSWER_PANEL_H }}
-    >
+    <div className="absolute bottom-0 left-0 right-0 flex items-center justify-center pb-6">
       <button
         onClick={handleReveal}
         className="text-white font-semibold transition-opacity"
@@ -104,21 +109,27 @@ export default function QuestionView({ gameState, onDismiss, onAnswerRevealed }:
   );
 
   // Image-only: image fills the card, panels float above it
+  const header = (
+    <div className="relative flex items-center justify-center pt-6 pb-2 px-14 flex-shrink-0">
+      <p className="text-white font-semibold text-base tracking-wide opacity-90 whitespace-nowrap">
+        {category.name} · {question.points}
+      </p>
+      <button
+        onClick={onDismiss}
+        className="absolute right-5 text-white opacity-60 hover:opacity-100 transition-opacity text-lg leading-none"
+      >
+        ✕
+      </button>
+    </div>
+  );
+
   if (imageOnly) {
     return (
-      <div className="w-full h-full rounded-3xl relative overflow-hidden">
+      <div className="w-full h-full rounded-3xl relative overflow-hidden" style={{ border: '6px solid white', animation: 'questionScaleIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={question.image!} alt="Question" className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/30 to-transparent pointer-events-none" />
-        <p className="absolute top-6 left-1/2 -translate-x-1/2 text-white text-base opacity-90 tracking-wide whitespace-nowrap drop-shadow">
-          {category.name} · {question.points}
-        </p>
-        <button
-          onClick={onDismiss}
-          className="absolute top-4 right-4 text-white opacity-60 hover:opacity-100 text-sm font-medium transition-opacity drop-shadow"
-        >
-          ✕ Close
-        </button>
+        <div className="absolute top-0 left-0 right-0">{header}</div>
         {answerPanel}
       </div>
     );
@@ -126,22 +137,19 @@ export default function QuestionView({ gameState, onDismiss, onAnswerRevealed }:
 
   return (
     <div
-      className="w-full h-full rounded-3xl relative overflow-hidden"
-      style={{ background: '#74C0FC' }}
+      className="w-full h-full rounded-3xl relative overflow-hidden flex flex-col"
+      style={{ background: '#35B7FB', border: '6px solid white', animation: 'questionScaleIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' }}
     >
+      {header}
+
       {/* Question content — centred, animates up on reveal */}
       <div
-        className="absolute inset-0 flex flex-col items-center justify-center px-10"
+        className="flex-1 min-h-0 flex flex-col items-center justify-center px-10"
         style={{
           paddingBottom: answerRevealed ? `calc(${ANSWER_PANEL_H} - 120px)` : '0%',
           transition: `padding-bottom ${REVEAL_TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
         }}
       >
-        {/* Category · Points */}
-        <p className="flex-shrink-0 text-white text-base mb-6 opacity-90 tracking-wide">
-          {category.name} · {question.points}
-        </p>
-
         {/* Image alongside text — takes upper portion of space */}
         {question.image && (
           <div className="flex-[3] min-h-0 flex items-center justify-center w-full mb-4">
@@ -172,14 +180,6 @@ export default function QuestionView({ gameState, onDismiss, onAnswerRevealed }:
 
       {/* Bottom answer panel */}
       {answerPanel}
-
-      {/* Dismiss */}
-      <button
-        onClick={onDismiss}
-        className="absolute top-4 right-4 text-white opacity-60 hover:opacity-100 text-sm font-medium transition-opacity"
-      >
-        ✕ Close
-      </button>
     </div>
   );
 }

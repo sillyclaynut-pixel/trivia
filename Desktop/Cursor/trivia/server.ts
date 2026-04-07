@@ -68,8 +68,8 @@ app.prepare().then(() => {
     });
 
     // ── Host judges answer ─────────────────────────────────────
-    socket.on('host_judge', ({ correct }: { correct: boolean }) => {
-      io.to('game').emit('game_state', judgeAnswer(correct));
+    socket.on('host_judge', ({ correct, playerId }: { correct: boolean; playerId: string }) => {
+      io.to('game').emit('game_state', judgeAnswer(correct, playerId));
     });
 
     // ── Player buzzes ──────────────────────────────────────────

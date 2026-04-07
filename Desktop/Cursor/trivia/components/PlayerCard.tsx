@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Player } from '@/types/game';
 
 interface Props {
@@ -20,9 +20,24 @@ const AVATAR_SIZE = 125;
 const AVATAR_OFFSET_X = 18;
 const AVATAR_OVERFLOW_TOP = 16; // ~15.19px above card top
 
+const JUDGE_BTN_SIZE = 56;
+const JUDGE_BTN_GAP = 8;
+
 export default function PlayerCard({ player, buzzed, showJudge, onCorrect, onWrong, onRename }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(player.teamName);
+  const [flashRed, setFlashRed] = useState(false);
+  const prevScore = useRef(player.score);
+
+  useEffect(() => {
+    if (player.score < prevScore.current) {
+      setFlashRed(true);
+      const t = setTimeout(() => setFlashRed(false), 600);
+      prevScore.current = player.score;
+      return () => clearTimeout(t);
+    }
+    prevScore.current = player.score;
+  }, [player.score]);
 
   function commit() {
     const name = draft.trim();
@@ -31,52 +46,87 @@ export default function PlayerCard({ player, buzzed, showJudge, onCorrect, onWro
     setEditing(false);
   }
 
+  // Right-align the button pair with a small margin from the card's right edge
+  const btnGroupWidth = JUDGE_BTN_SIZE * 2 + JUDGE_BTN_GAP;
+  const btnGroupLeft = CARD_WIDTH - btnGroupWidth - 20;
+  // Bleed ~half button height above the card top
+  const btnGroupTop = AVATAR_OVERFLOW_TOP - JUDGE_BTN_SIZE / 2;
+
   return (
     // Wrapper adds top padding so the avatar overflow doesn't clip
     <div className="relative" style={{ paddingTop: AVATAR_OVERFLOW_TOP }}>
 
       {/* Avatar — overlaps above the card's top-left area */}
       <div style={{ position: 'absolute', zIndex: 10, left: AVATAR_OFFSET_X, top: 0 }}>
-        <div style={{
-          width: AVATAR_SIZE,
-          height: AVATAR_SIZE,
-          borderRadius: '50%',
-          overflow: 'hidden',
-          flexShrink: 0,
-        }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={player.face}
-            alt=""
-            style={{
-              display: 'block',
-              width: '118%',
-              height: '118%',
-              marginLeft: '-9%',
-              marginTop: '-9%',
-              objectFit: 'cover',
-            }}
-          />
-        </div>
-
-        {/* Judge buttons — shown when player buzzed and awaiting judgment */}
-        {showJudge && (
-          <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex gap-1">
-            <button
-              onClick={onCorrect}
-              className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white text-sm font-bold shadow-md hover:bg-green-600 transition-colors"
-            >
-              ✓
-            </button>
-            <button
-              onClick={onWrong}
-              className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white text-sm font-bold shadow-md hover:bg-red-600 transition-colors"
-            >
-              ✕
-            </button>
-          </div>
-        )}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={player.face}
+          alt=""
+          style={{
+            display: 'block',
+            width: AVATAR_SIZE,
+            height: AVATAR_SIZE,
+            borderRadius: '50%',
+            overflow: 'hidden',
+          }}
+        />
       </div>
+
+      {/* Judge buttons — bleed over the card top edge */}
+      {showJudge && (
+        <div style={{
+          position: 'absolute',
+          top: btnGroupTop,
+          left: btnGroupLeft,
+          display: 'flex',
+          flexDirection: 'row',
+          gap: JUDGE_BTN_GAP,
+          zIndex: 20,
+        }}>
+          <button
+            onClick={onCorrect}
+            className="transition-transform duration-150 hover:scale-110 hover:rotate-3"
+            style={{
+              width: JUDGE_BTN_SIZE,
+              height: JUDGE_BTN_SIZE,
+              background: '#4CD964',
+              borderRadius: 16,
+              border: '4px solid white',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              fontSize: 26,
+              fontWeight: 'bold',
+              boxShadow: 'none',
+            }}
+          >
+            ✓
+          </button>
+          <button
+            onClick={onWrong}
+            className="transition-transform duration-150 hover:scale-110 hover:-rotate-3"
+            style={{
+              width: JUDGE_BTN_SIZE,
+              height: JUDGE_BTN_SIZE,
+              background: '#FF3B30',
+              borderRadius: 16,
+              border: '4px solid white',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              fontSize: 26,
+              fontWeight: 'bold',
+              boxShadow: 'none',
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Card body */}
       <div
@@ -93,11 +143,11 @@ export default function PlayerCard({ player, buzzed, showJudge, onCorrect, onWro
           padding: '29px 64px',
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'space-between',
+          justifyContent: 'center',
           alignItems: 'flex-end',
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 0, alignItems: 'flex-start' }}>
           {editing ? (
             <input
               autoFocus
@@ -108,29 +158,40 @@ export default function PlayerCard({ player, buzzed, showJudge, onCorrect, onWro
               style={{
                 fontFamily: 'var(--font-inter), Inter, sans-serif',
                 fontWeight: 700,
-                fontSize: 18,
+                fontSize: 22,
                 lineHeight: '1.21em',
                 color: 'rgba(0, 0, 0, 0.7)',
-                background: 'transparent',
-                border: 'none',
-                borderBottom: '2px solid rgba(0,0,0,0.2)',
+                background: 'rgba(0,0,0,0.05)',
+                border: '2px solid transparent',
+                borderRadius: 8,
                 outline: 'none',
                 width: 180,
-                padding: 0,
+                padding: '4px 10px',
+                boxSizing: 'border-box',
+                textAlign: 'left',
               }}
             />
           ) : (
             <p
               onClick={() => { setDraft(player.teamName); setEditing(true); }}
+              className={onRename ? 'transition-colors hover:bg-black/5' : ''}
               style={{
                 fontFamily: 'var(--font-inter), Inter, sans-serif',
                 fontWeight: 700,
-                fontSize: 18,
+                fontSize: 22,
                 lineHeight: '1.21em',
                 color: 'rgba(0, 0, 0, 0.5)',
                 margin: 0,
                 whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
                 cursor: onRename ? 'text' : 'default',
+                border: '2px solid transparent',
+                borderRadius: 8,
+                padding: '4px 10px',
+                width: 180,
+                boxSizing: 'border-box',
+                textAlign: 'left',
               }}
             >
               {player.teamName}
@@ -142,9 +203,11 @@ export default function PlayerCard({ player, buzzed, showJudge, onCorrect, onWro
               fontWeight: 700,
               fontSize: 36,
               lineHeight: '1.21em',
-              color: '#000000',
+              color: flashRed ? '#FF3B30' : '#000000',
               margin: 0,
               whiteSpace: 'nowrap',
+              paddingLeft: 12,
+              transition: 'color 0.3s ease',
             }}
           >
             {player.score} pts

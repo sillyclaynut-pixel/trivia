@@ -94,8 +94,8 @@ export function buzz(socketId: string): GameState | null {
   return game;
 }
 
-export function judgeAnswer(correct: boolean): GameState {
-  const player = game.players.find((p) => p.id === game.buzzedPlayerId);
+export function judgeAnswer(correct: boolean, playerId: string): GameState {
+  const player = game.players.find((p) => p.id === playerId);
   if (!player || !game.activeQuestion) {
     game = { ...game, phase: 'board', activeQuestion: null, buzzedPlayerId: null };
     return game;
@@ -111,25 +111,36 @@ export function judgeAnswer(correct: boolean): GameState {
   const delta = correct ? pointValue : -pointValue;
 
   // Mark question answered and update score
-  game = {
-    ...game,
-    phase: 'board',
-    buzzedPlayerId: null,
-    activeQuestion: null,
-    players: game.players.map((p) =>
-      p.id === player.id ? { ...p, score: p.score + delta } : p
-    ),
-    categories: game.categories.map((c) =>
-      c.id === categoryId
-        ? {
-            ...c,
-            questions: c.questions.map((q) =>
-              q.id === questionId ? { ...q, answered: true } : q
-            ),
-          }
-        : c
-    ),
-  };
+  if (correct) {
+    game = {
+      ...game,
+      phase: 'board',
+      buzzedPlayerId: null,
+      activeQuestion: null,
+      players: game.players.map((p) =>
+        p.id === player.id ? { ...p, score: p.score + delta } : p
+      ),
+      categories: game.categories.map((c) =>
+        c.id === categoryId
+          ? {
+              ...c,
+              questions: c.questions.map((q) =>
+                q.id === questionId ? { ...q, answered: true } : q
+              ),
+            }
+          : c
+      ),
+    };
+  } else {
+    game = {
+      ...game,
+      phase: 'question',
+      buzzedPlayerId: null,
+      players: game.players.map((p) =>
+        p.id === player.id ? { ...p, score: p.score + delta } : p
+      ),
+    };
+  }
   return game;
 }
 

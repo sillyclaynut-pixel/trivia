@@ -29,12 +29,20 @@ export default function HostPage() {
 
   return (
     <main
-      className="h-screen overflow-hidden flex flex-col items-center px-6 pt-6 pb-0 gap-4"
+      className="relative h-screen overflow-hidden flex flex-col items-center px-6 pt-6 pb-0 gap-4"
       style={{ background: '#C8E6F5' }}
     >
-      {/* Header */}
-      <div className="flex-shrink-0 bg-white rounded-2xl px-6 py-3 flex items-center gap-6 shadow-sm">
-        <p className="font-bold text-gray-900 text-base">{gameState.title}</p>
+      {/* Top-right controls */}
+      <div className="absolute top-4 right-4 flex items-center gap-3 z-10">
+        <button
+          onClick={() => emit('host_reset_game')}
+          className="px-4 py-2 text-sm font-semibold transition-colors"
+          style={{ color: '#74C0FC' }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = '#4AABF5')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = '#74C0FC')}
+        >
+          Reset
+        </button>
         <button
           onClick={() => router.push('/edit')}
           className="px-4 py-2 rounded-xl text-white text-sm font-semibold transition-colors"
@@ -76,26 +84,20 @@ export default function HostPage() {
           const fittingScale = AVAILABLE_W / (players.length * CARD_W + (players.length - 1) * CARD_GAP);
           const cardScale = Math.min(BASE_SCALE, fittingScale);
           return (
-            <div className="flex items-end justify-center gap-2">
+            <div className="flex items-end justify-center">
               <div className="flex items-end" style={{ gap: CARD_GAP, zoom: cardScale }}>
                 {players.map((player) => (
                   <PlayerCard
                     key={player.id}
                     player={player}
                     buzzed={player.id === buzzedPlayerId}
-                    showJudge={phase === 'buzzed' && player.id === buzzedPlayerId}
-                    onCorrect={() => emit('host_judge', { correct: true })}
-                    onWrong={() => emit('host_judge', { correct: false })}
+                    showJudge={phase === 'question' || phase === 'buzzed'}
+                    onCorrect={() => emit('host_judge', { correct: true, playerId: player.id })}
+                    onWrong={() => emit('host_judge', { correct: false, playerId: player.id })}
                     onRename={(name) => emit('host_rename_team', { playerId: player.id, teamName: name })}
                   />
                 ))}
               </div>
-              <button
-                onClick={() => emit('host_reset_game')}
-                className="text-xs text-gray-400 hover:text-gray-600 underline ml-2 flex-shrink-0"
-              >
-                Reset
-              </button>
             </div>
           );
         })()}
