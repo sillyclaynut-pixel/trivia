@@ -3,6 +3,7 @@ import { parse } from 'url';
 import next from 'next';
 import { Server } from 'socket.io';
 import {
+  createGame,
   getGame,
   addPlayer,
   removePlayer,
@@ -11,7 +12,6 @@ import {
   selectQuestion,
   dismissQuestion,
   markActiveQuestionAnswered,
-  startGame,
   updateGameContent,
   resetGame,
   renameTeam,
@@ -30,76 +30,101 @@ app.prepare().then(() => {
 
   const io = new Server(httpServer, {
     cors: { origin: '*' },
-    maxHttpBufferSize: 1e8, // 100 MB — needed for base64 image payloads
+    maxHttpBufferSize: 1e8,
   });
 
+  // Track which game each socket belongs to
+  const socketToCode = new Map<string, string>();
+
   io.on('connection', (socket) => {
-    // ── Player joins the game ──────────────────────────────────
-    socket.on('join_game', ({ teamName }: { teamName: string }) => {
-      const updated = addPlayer(socket.id, teamName);
-      socket.join('game');
-      io.to('game').emit('game_state', updated);
+
+    // ── Create a new game ─────────────────────────────────────
+    socket.on('create_game', () => {
+      const game = createGame();
+      socketToCode.set(socket.id, game.code);
+      socket.join(game.code);
+      socket.emit('game_created', { code: game.code, gameState: game });
     });
 
-    // ── Host connects ──────────────────────────────────────────
-    socket.on('host_connect', () => {
-      socket.join('game');
-      socket.emit('game_state', getGame());
+    // ── Host connects to existing game ────────────────────────
+    socket.on('host_connect', ({ code }: { code: string }) => {
+      const game = getGame(code);
+      if (!game) return socket.emit('game_error', 'Game not found');
+      socketToCode.set(socket.id, code);
+      socket.join(code);
+      socket.emit('game_state', game);
     });
 
-    // ── Host starts game ───────────────────────────────────────
-    socket.on('host_start', () => {
-      io.to('game').emit('game_state', startGame());
+    // ── Player joins game ─────────────────────────────────────
+    socket.on('join_game', ({ code, teamName }: { code: string; teamName: string }) => {
+      const updated = addPlayer(code, socket.id, teamName);
+      if (!updated) return socket.emit('game_error', 'Game not found');
+      socketToCode.set(socket.id, code);
+      socket.join(code);
+      io.to(code).emit('game_state', updated);
+      socket.emit('joined', { code });
     });
 
-    // ── Host selects a question ────────────────────────────────
-    socket.on('host_select_question', ({ categoryId, questionId }: { categoryId: string; questionId: string }) => {
-      io.to('game').emit('game_state', selectQuestion(categoryId, questionId));
+    // ── Host selects a question ───────────────────────────────
+    socket.on('host_select_question', ({ code, categoryId, questionId }: { code: string; categoryId: string; questionId: string }) => {
+      const updated = selectQuestion(code, categoryId, questionId);
+      if (updated) io.to(code).emit('game_state', updated);
     });
 
-    // ── Host dismisses question ────────────────────────────────
-    socket.on('host_dismiss_question', () => {
-      io.to('game').emit('game_state', dismissQuestion());
+    // ── Host dismisses question ───────────────────────────────
+    socket.on('host_dismiss_question', ({ code }: { code: string }) => {
+      const updated = dismissQuestion(code);
+      if (updated) io.to(code).emit('game_state', updated);
     });
 
-    // ── Host marks active question answered (answer revealed) ──
-    socket.on('host_mark_answered', () => {
-      io.to('game').emit('game_state', markActiveQuestionAnswered());
+    // ── Host marks active question answered ───────────────────
+    socket.on('host_mark_answered', ({ code }: { code: string }) => {
+      const updated = markActiveQuestionAnswered(code);
+      if (updated) io.to(code).emit('game_state', updated);
     });
 
-    // ── Host judges answer ─────────────────────────────────────
-    socket.on('host_judge', ({ correct, playerId }: { correct: boolean; playerId: string }) => {
-      io.to('game').emit('game_state', judgeAnswer(correct, playerId));
+    // ── Host judges answer ────────────────────────────────────
+    socket.on('host_judge', ({ code, correct, playerId }: { code: string; correct: boolean; playerId: string }) => {
+      const updated = judgeAnswer(code, correct, playerId);
+      if (updated) io.to(code).emit('game_state', updated);
     });
 
-    // ── Player buzzes ──────────────────────────────────────────
+    // ── Player buzzes ─────────────────────────────────────────
     socket.on('buzz', () => {
-      const updated = buzz(socket.id);
-      if (updated) io.to('game').emit('game_state', updated);
+      const code = socketToCode.get(socket.id);
+      if (!code) return;
+      const updated = buzz(code, socket.id);
+      if (updated) io.to(code).emit('game_state', updated);
     });
 
-    // ── Host saves game content ────────────────────────────────
-    socket.on('host_save_game', ({ title, categories }: { title: string; categories: Category[] }) => {
-      io.to('game').emit('game_state', updateGameContent(title, categories));
+    // ── Host saves game content ───────────────────────────────
+    socket.on('host_save_game', ({ code, title, categories }: { code: string; title: string; categories: Category[] }) => {
+      const updated = updateGameContent(code, title, categories);
+      if (updated) io.to(code).emit('game_state', updated);
     });
 
-    // ── Host renames a team ────────────────────────────────────
-    socket.on('host_rename_team', ({ playerId, teamName }: { playerId: string; teamName: string }) => {
-      io.to('game').emit('game_state', renameTeam(playerId, teamName));
+    // ── Host renames a team ───────────────────────────────────
+    socket.on('host_rename_team', ({ code, playerId, teamName }: { code: string; playerId: string; teamName: string }) => {
+      const updated = renameTeam(code, playerId, teamName);
+      if (updated) io.to(code).emit('game_state', updated);
     });
 
-    // ── Host resets game ───────────────────────────────────────
-    socket.on('host_reset_game', () => {
-      io.to('game').emit('game_state', resetGame());
+    // ── Host resets game ──────────────────────────────────────
+    socket.on('host_reset_game', ({ code }: { code: string }) => {
+      const updated = resetGame(code);
+      if (updated) io.to(code).emit('game_state', updated);
     });
 
-    // ── Disconnect ─────────────────────────────────────────────
+    // ── Disconnect ────────────────────────────────────────────
     socket.on('disconnect', () => {
-      const before = getGame();
-      const wasPlayer = before.players.some((p) => p.id === socket.id);
-      if (wasPlayer) {
-        io.to('game').emit('game_state', removePlayer(socket.id));
+      const code = socketToCode.get(socket.id);
+      if (!code) return;
+      const game = getGame(code);
+      if (game?.players.some((p) => p.id === socket.id)) {
+        const updated = removePlayer(code, socket.id);
+        if (updated) io.to(code).emit('game_state', updated);
       }
+      socketToCode.delete(socket.id);
     });
   });
 

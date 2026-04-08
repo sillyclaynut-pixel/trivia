@@ -1,6 +1,8 @@
 import { GameState, Category, Player, AVATAR_COLORS, AVATAR_FACES } from '@/types/game';
 import { v4 as uuidv4 } from 'uuid';
 
+const games = new Map<string, GameState>();
+
 function defaultPlayers(): Player[] {
   return Array.from({ length: 4 }, (_, i) => ({
     id: `preset-${i}`,
@@ -13,7 +15,11 @@ function defaultPlayers(): Player[] {
 
 function generateCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  let code: string;
+  do {
+    code = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  } while (games.has(code));
+  return code;
 }
 
 function defaultCategories(): Category[] {
@@ -30,37 +36,45 @@ function defaultCategories(): Category[] {
   }));
 }
 
-// Single global game for simplicity — can be extended to multi-game
-let game: GameState = {
-  id: uuidv4(),
-  title: 'My Trivia Game',
-  code: generateCode(),
-  phase: 'board',
-  categories: defaultCategories(),
-  players: defaultPlayers(),
-  activeQuestion: null,
-  buzzedPlayerId: null,
-};
+function set(code: string, updates: Partial<GameState>): GameState | null {
+  const game = games.get(code);
+  if (!game) return null;
+  const updated = { ...game, ...updates };
+  games.set(code, updated);
+  return updated;
+}
 
-export function getGame(): GameState {
+export function createGame(): GameState {
+  const code = generateCode();
+  const game: GameState = {
+    id: uuidv4(),
+    title: 'My Trivia Game',
+    code,
+    phase: 'board',
+    categories: defaultCategories(),
+    players: defaultPlayers(),
+    activeQuestion: null,
+    buzzedPlayerId: null,
+  };
+  games.set(code, game);
   return game;
 }
 
-export function updateGame(updates: Partial<GameState>): GameState {
-  game = { ...game, ...updates };
-  return game;
+export function getGame(code: string): GameState | null {
+  return games.get(code) ?? null;
 }
 
-export function addPlayer(socketId: string, teamName: string): GameState {
-  // If a preset slot has this name, claim it (so buzzing works via real socket ID)
+export function addPlayer(code: string, socketId: string, teamName: string): GameState | null {
+  const game = games.get(code);
+  if (!game) return null;
+
   const matchIdx = game.players.findIndex(
     (p) => p.teamName.toLowerCase() === teamName.toLowerCase()
   );
   if (matchIdx >= 0) {
     const updated = [...game.players];
     updated[matchIdx] = { ...updated[matchIdx], id: socketId };
-    game = { ...game, players: updated };
-    return game;
+    return set(code, { players: updated });
   }
 
   const usedColors = game.players.map((p) => p.color);
@@ -68,130 +82,101 @@ export function addPlayer(socketId: string, teamName: string): GameState {
   const color = AVATAR_COLORS.find((c) => !usedColors.includes(c)) ?? AVATAR_COLORS[game.players.length % AVATAR_COLORS.length];
   const face = AVATAR_FACES.find((f) => !usedFaces.includes(f)) ?? AVATAR_FACES[game.players.length % AVATAR_FACES.length];
 
-  game = {
-    ...game,
+  return set(code, {
     players: [...game.players, { id: socketId, teamName, score: 0, color, face }],
-  };
-  return game;
+  });
 }
 
-export function renameTeam(playerId: string, teamName: string): GameState {
-  game = {
-    ...game,
+export function renameTeam(code: string, playerId: string, teamName: string): GameState | null {
+  const game = games.get(code);
+  if (!game) return null;
+  return set(code, {
     players: game.players.map((p) => p.id === playerId ? { ...p, teamName } : p),
-  };
-  return game;
+  });
 }
 
-export function removePlayer(socketId: string): GameState {
-  game = { ...game, players: game.players.filter((p) => p.id !== socketId) };
-  return game;
+export function removePlayer(code: string, socketId: string): GameState | null {
+  const game = games.get(code);
+  if (!game) return null;
+  return set(code, { players: game.players.filter((p) => p.id !== socketId) });
 }
 
-export function buzz(socketId: string): GameState | null {
-  if (game.phase !== 'question' || game.buzzedPlayerId !== null) return null;
-  game = { ...game, phase: 'buzzed', buzzedPlayerId: socketId };
-  return game;
+export function buzz(code: string, socketId: string): GameState | null {
+  const game = games.get(code);
+  if (!game || game.phase !== 'question' || game.buzzedPlayerId !== null) return null;
+  return set(code, { phase: 'buzzed', buzzedPlayerId: socketId });
 }
 
-export function judgeAnswer(correct: boolean, playerId: string): GameState {
+export function judgeAnswer(code: string, correct: boolean, playerId: string): GameState | null {
+  const game = games.get(code);
+  if (!game) return null;
+
   const player = game.players.find((p) => p.id === playerId);
   if (!player || !game.activeQuestion) {
-    game = { ...game, phase: 'board', activeQuestion: null, buzzedPlayerId: null };
-    return game;
+    return set(code, { phase: 'board', activeQuestion: null, buzzedPlayerId: null });
   }
 
-  // Capture before mutation
   const { categoryId, questionId } = game.activeQuestion;
-
   const pointValue = game.categories
     .find((c) => c.id === categoryId)
     ?.questions.find((q) => q.id === questionId)?.points ?? 0;
-
   const delta = correct ? pointValue : -pointValue;
 
-  // Mark question answered and update score
   if (correct) {
-    game = {
-      ...game,
+    return set(code, {
       phase: 'board',
       buzzedPlayerId: null,
       activeQuestion: null,
-      players: game.players.map((p) =>
-        p.id === player.id ? { ...p, score: p.score + delta } : p
-      ),
+      players: game.players.map((p) => p.id === player.id ? { ...p, score: p.score + delta } : p),
       categories: game.categories.map((c) =>
         c.id === categoryId
-          ? {
-              ...c,
-              questions: c.questions.map((q) =>
-                q.id === questionId ? { ...q, answered: true } : q
-              ),
-            }
+          ? { ...c, questions: c.questions.map((q) => q.id === questionId ? { ...q, answered: true } : q) }
           : c
       ),
-    };
+    });
   } else {
-    game = {
-      ...game,
+    return set(code, {
       phase: 'question',
       buzzedPlayerId: null,
-      players: game.players.map((p) =>
-        p.id === player.id ? { ...p, score: p.score + delta } : p
-      ),
-    };
+      players: game.players.map((p) => p.id === player.id ? { ...p, score: p.score + delta } : p),
+    });
   }
-  return game;
 }
 
-export function selectQuestion(categoryId: string, questionId: string): GameState {
-  game = {
-    ...game,
-    phase: 'question',
-    activeQuestion: { categoryId, questionId },
-    buzzedPlayerId: null,
-  };
-  return game;
+export function selectQuestion(code: string, categoryId: string, questionId: string): GameState | null {
+  return set(code, { phase: 'question', activeQuestion: { categoryId, questionId }, buzzedPlayerId: null });
 }
 
-export function dismissQuestion(): GameState {
-  game = { ...game, phase: 'board', activeQuestion: null, buzzedPlayerId: null };
-  return game;
+export function dismissQuestion(code: string): GameState | null {
+  return set(code, { phase: 'board', activeQuestion: null, buzzedPlayerId: null });
 }
 
-export function markActiveQuestionAnswered(): GameState {
-  if (!game.activeQuestion) return game;
+export function markActiveQuestionAnswered(code: string): GameState | null {
+  const game = games.get(code);
+  if (!game?.activeQuestion) return game ?? null;
   const { categoryId, questionId } = game.activeQuestion;
-  game = {
-    ...game,
+  return set(code, {
     categories: game.categories.map((c) =>
       c.id === categoryId
         ? { ...c, questions: c.questions.map((q) => q.id === questionId ? { ...q, answered: true } : q) }
         : c
     ),
-  };
-  return game;
+  });
 }
 
-export function startGame(): GameState {
-  game = { ...game, phase: 'board' };
-  return game;
+export function updateGameContent(code: string, title: string, categories: Category[]): GameState | null {
+  return set(code, { title, categories });
 }
 
-export function updateGameContent(title: string, categories: Category[]): GameState {
-  game = { ...game, title, categories };
-  return game;
-}
-
-export function resetGame(): GameState {
-  // Keep team names but reset scores; restore any slots that lost their connection
+export function resetGame(code: string): GameState | null {
+  const game = games.get(code);
+  if (!game) return null;
   const resetPlayers = game.players.map((p, i) => ({
     ...p,
     id: p.id.startsWith('preset-') ? p.id : `preset-${i}`,
     score: 0,
   }));
-  game = {
-    ...game,
+  return set(code, {
     phase: 'board',
     players: resetPlayers,
     activeQuestion: null,
@@ -200,6 +185,5 @@ export function resetGame(): GameState {
       ...c,
       questions: c.questions.map((q) => ({ ...q, answered: false })),
     })),
-  };
-  return game;
+  });
 }
