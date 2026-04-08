@@ -1,13 +1,32 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useSocket } from '@/hooks/useSocket';
 import { Category } from '@/types/game';
+
+function BoardAnimated({ children }: { children: React.ReactNode }) {
+  const [entered, setEntered] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  return (
+    <div
+      className="relative w-full max-w-5xl flex-1 min-h-0 mt-10"
+      style={{
+        transform: entered ? 'scale(1)' : 'scale(0.94)',
+        opacity: entered ? 1 : 0,
+        transition: entered ? 'transform 0.6s cubic-bezier(0.34, 1.4, 0.64, 1), opacity 0.35s ease' : 'none',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
 
 export default function EditPage() {
   const { code } = useParams<{ code: string }>();
   const { gameState, emit } = useSocket();
-  const router = useRouter();
 
   const [title, setTitle] = useState('');
   const [categories, setCategories] = useState<Category[]>([]);
@@ -27,6 +46,16 @@ export default function EditPage() {
     }
   }, [gameState, categories.length]);
 
+  // Save latest state on unmount (triggered when layout button navigates away)
+  const latestRef = useRef({ code, title, categories, emit });
+  useEffect(() => { latestRef.current = { code, title, categories, emit }; });
+  useEffect(() => {
+    return () => {
+      const { code, title, categories, emit } = latestRef.current;
+      if (categories.length > 0) emit('host_save_game', { code, title, categories });
+    };
+  }, []);
+
   const updateCategoryName = (catIdx: number, name: string) => {
     setCategories((prev) => prev.map((c, i) => (i === catIdx ? { ...c, name } : c)));
   };
@@ -39,42 +68,25 @@ export default function EditPage() {
     );
   };
 
-  const handleFinishEditing = () => {
-    emit('host_save_game', { code, title, categories });
-    router.push(`/host/${code}`);
-  };
-
-  if (!gameState || categories.length === 0) {
-    return (
-      <main className="min-h-screen flex items-center justify-center" style={{ background: '#F8FAF9' }}>
-        <p className="text-gray-500">Loading…</p>
-      </main>
-    );
-  }
-
   const editingQuestion = editingTile ? categories[editingTile.catIdx]?.questions[editingTile.qIdx] : null;
+  const ready = !!(gameState && categories.length > 0);
 
   return (
     <main
-      className="relative h-screen overflow-hidden flex flex-col items-center px-6 pt-6 pb-6 gap-4"
-      style={{ background: '#F8FAF9' }}
+      className="relative h-screen overflow-hidden flex flex-col items-center px-6 pt-6 pb-0 gap-4"
     >
-      <button
-        onClick={handleFinishEditing}
-        disabled={imageLoading}
-        className="absolute top-4 right-4 z-10 px-4 py-2 rounded-xl text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        style={{ background: '#74C0FC' }}
-        onMouseEnter={(e) => { if (!imageLoading) e.currentTarget.style.background = '#4AABF5'; }}
-        onMouseLeave={(e) => (e.currentTarget.style.background = '#74C0FC')}
-      >
-        {imageLoading ? 'Uploading…' : 'Finish editing'}
-      </button>
+      <div className="absolute inset-0 -z-10" style={{ background: '#F8FAF9', animation: 'fadeIn 0.35s ease both' }} />
+      {!ready ? (
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-gray-400">Loading…</p>
+        </div>
+      ) : (<>
 
-      <div className="relative w-full max-w-5xl flex-1 min-h-0 mt-10">
+      <BoardAnimated>
         {!editingTile && (
           <div
-            className="rounded-3xl p-4 w-full h-full flex flex-col gap-3"
-            style={{ background: '#FBFBFB', border: '6px solid #FFFFFF', boxShadow: '0px 4px 16px rgba(34, 34, 34, 0.06)' }}
+            className="bg-white rounded-3xl p-4 w-full h-full flex flex-col gap-3"
+            style={{ boxShadow: '0px 4px 16px rgba(34, 34, 34, 0.06)' }}
           >
             <div className="grid grid-cols-5 gap-3 flex-shrink-0">
               {categories.map((cat, catIdx) => (
@@ -176,7 +188,11 @@ export default function EditPage() {
             </div>
           </div>
         )}
-      </div>
+      </BoardAnimated>
+
+      {/* Spacer matching the host page's player card bar height */}
+      <div className="flex-shrink-0" style={{ height: 81 }} />
+      </>)}
     </main>
   );
 }

@@ -19,7 +19,7 @@ export default function GameBoard({ gameState, onSelectQuestion }: Props) {
       {/* Category headers */}
       <div className="grid grid-cols-5 gap-3 flex-shrink-0">
         {gameState.categories.map((cat) => (
-          <div key={cat.id} className="text-center text-gray-500 font-medium text-sm px-2 truncate">
+          <div key={cat.id} className="text-center text-gray-500 font-medium text-sm px-2 py-1 truncate">
             {cat.name}
           </div>
         ))}
