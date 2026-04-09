@@ -19,7 +19,7 @@ export default function GameBoard({ gameState, onSelectQuestion }: Props) {
       {/* Category headers */}
       <div className="grid grid-cols-5 gap-3 flex-shrink-0">
         {gameState.categories.map((cat) => (
-          <div key={cat.id} className="text-center text-gray-500 font-medium text-sm px-2 py-1 truncate">
+          <div key={cat.id} className="text-center font-medium px-2 py-1 truncate" style={{ color: '#7AB0D8', fontSize: 20 }}>
             {cat.name}
           </div>
         ))}
@@ -69,8 +69,9 @@ export default function GameBoard({ gameState, onSelectQuestion }: Props) {
                     style={{
                       backgroundImage: 'url(/images/card-stripes.png)',
                       backgroundSize: '165% 145%',
-                      backgroundPosition: 'center',
+                      backgroundPosition: isHovered ? undefined : 'center',
                       opacity: 0.24,
+                      animation: isHovered ? 'stripe-drift 3s linear infinite' : undefined,
                     }}
                   />
                 )}
@@ -78,10 +79,11 @@ export default function GameBoard({ gameState, onSelectQuestion }: Props) {
                 {/* Point value */}
                 {isAnswered ? (
                   <span
-                    className="relative z-10 font-bold text-2xl"
+                    className="relative z-10 font-bold"
                     style={{
                       fontFamily: 'var(--font-inter), Inter, sans-serif',
                       fontWeight: 700,
+                      fontSize: 32,
                       background: 'linear-gradient(0deg, #C7C7C7 0%, #C6C2C2 100%)',
                       WebkitBackgroundClip: 'text',
                       WebkitTextFillColor: 'transparent',
@@ -92,10 +94,11 @@ export default function GameBoard({ gameState, onSelectQuestion }: Props) {
                   </span>
                 ) : (
                   <span
-                    className="relative z-10 font-bold text-2xl"
+                    className="relative z-10 font-bold"
                     style={{
                       fontFamily: 'var(--font-inter), Inter, sans-serif',
                       fontWeight: 700,
+                      fontSize: 32,
                       color: '#FFFFFF',
                       textShadow: '0px 4px 16px rgba(34, 34, 34, 0.06)',
                     }}

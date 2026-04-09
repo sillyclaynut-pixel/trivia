@@ -64,16 +64,19 @@ export default function EditPage() {
   return (
     <main
       className="relative h-screen overflow-hidden flex flex-col items-center px-6 pt-6 pb-6 gap-4"
-      style={{ background: '#F8FAF9' }}
+      style={{
+        backgroundColor: '#F8FAF9',
+        backgroundImage: 'repeating-linear-gradient(60deg, transparent 0px, transparent 12px, rgba(0,0,0,0.015) 12px, rgba(0,0,0,0.015) 30px)',
+      }}
     >
       {/* Top-right controls */}
       <button
         onClick={handleFinishEditing}
         disabled={imageLoading}
         className="absolute top-4 right-4 z-10 px-4 py-2 rounded-xl text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        style={{ background: '#74C0FC' }}
-        onMouseEnter={(e) => { if (!imageLoading) e.currentTarget.style.background = '#4AABF5'; }}
-        onMouseLeave={(e) => (e.currentTarget.style.background = '#74C0FC')}
+        style={{ background: '#111111' }}
+        onMouseEnter={(e) => { if (!imageLoading) e.currentTarget.style.background = '#333333'; }}
+        onMouseLeave={(e) => (e.currentTarget.style.background = '#111111')}
       >
         {imageLoading ? 'Uploading…' : 'Finish editing'}
       </button>
@@ -99,10 +102,11 @@ export default function EditPage() {
                   type="text"
                   value={cat.name}
                   onChange={(e) => updateCategoryName(catIdx, e.target.value)}
-                  className="text-center font-semibold text-sm px-2 py-1 rounded-lg bg-transparent outline-none focus:bg-black/5 transition-colors truncate"
+                  className="text-center font-semibold px-2 py-1 rounded-lg bg-transparent outline-none hover:bg-[#EEF6FB] focus:bg-[#EEF6FB] transition-colors truncate"
                   style={{
-                    color: 'rgba(0,0,0,0.5)',
+                    color: '#7AB0D8',
                     fontFamily: 'var(--font-inter), Inter, sans-serif',
+                    fontSize: 20,
                   }}
                   placeholder={`Category ${catIdx + 1}`}
                 />
@@ -150,96 +154,122 @@ export default function EditPage() {
         {/* Full-screen edit view (replaces board when a tile is selected) */}
         {editingTile && editingQuestion && (
           <div
-            className="w-full h-full rounded-3xl flex flex-col p-10 relative"
+            className="w-full h-full rounded-[32px] flex flex-col relative overflow-hidden"
             style={{ background: '#FBFBFB', border: '6px solid #FFFFFF', boxShadow: '0px 4px 16px rgba(34, 34, 34, 0.06)' }}
           >
             {/* Close */}
             <button
               onClick={() => setEditingTile(null)}
-              className="absolute top-4 right-4 opacity-40 hover:opacity-80 text-sm font-medium transition-opacity"
-              style={{ color: '#222' }}
+              className="absolute top-5 right-5 z-10 w-8 h-8 flex items-center justify-center rounded-full opacity-30 hover:opacity-70 transition-opacity text-sm"
+              style={{ color: '#4E8AB8', background: '#EEF6FB' }}
             >
-              ✕ Close
+              ✕
             </button>
 
-            {/* Category · Points */}
-            <p className="text-sm mb-8 opacity-60" style={{ color: '#222' }}>
-              {categories[editingTile.catIdx].name} · {editingQuestion.points}
-            </p>
+            {/* Upper: header + question + image */}
+            <div className="flex-1 flex flex-col items-center px-16 pt-10 pb-8 min-h-0 overflow-hidden">
+              {/* Category · dot · points */}
+              <div className="flex items-center gap-2 flex-shrink-0 mb-8">
+                <span style={{ color: '#7AB0D8', fontFamily: 'var(--font-inter), Inter, sans-serif', fontWeight: 600, fontSize: '1.5rem', letterSpacing: '-0.01em' }}>
+                  {categories[editingTile.catIdx].name}
+                </span>
+                <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#9EC8E8', flexShrink: 0 }} />
+                <span style={{ color: '#7AB0D8', fontFamily: 'var(--font-inter), Inter, sans-serif', fontWeight: 600, fontSize: '1.5rem', letterSpacing: '-0.01em' }}>
+                  {editingQuestion.points}
+                </span>
+              </div>
 
-            {/* Image */}
-            <div className="flex justify-center mb-6">
-              {editingQuestion.image ? (
-                <div className="relative">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={editingQuestion.image}
-                    alt="Question"
-                    className="max-h-48 rounded-2xl object-contain shadow-lg"
-                  />
-                  <button
-                    onClick={() => updateQuestion(editingTile.catIdx, editingTile.qIdx, 'image', '')}
-                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/50 text-white text-xs flex items-center justify-center hover:bg-black/70 transition-colors"
-                  >
-                    ✕
-                  </button>
+              {/* Question textarea + image — centered together */}
+              <div className="flex-1 flex flex-col items-center justify-center w-full min-h-0 gap-6">
+                <textarea
+                  value={editingQuestion.text}
+                  onChange={(e) => updateQuestion(editingTile.catIdx, editingTile.qIdx, 'text', e.target.value)}
+                  placeholder="Enter question..."
+                  className="w-full text-center font-bold bg-transparent outline-none resize-none placeholder:text-[#C8DFF0]"
+                  style={{
+                    fontSize: 'clamp(2rem, 5vw, 6rem)',
+                    color: '#2D6A9A',
+                    fontFamily: 'var(--font-inter), Inter, sans-serif',
+                    lineHeight: 1.21,
+                  }}
+                />
+                <div className="flex-shrink-0">
+                {editingQuestion.image ? (
+                  <div className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={editingQuestion.image} alt="Question" className="max-h-32 rounded-2xl object-contain" />
+                    <button
+                      onClick={() => updateQuestion(editingTile.catIdx, editingTile.qIdx, 'image', '')}
+                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/50 text-white text-xs flex items-center justify-center hover:bg-black/70 transition-colors"
+                    >✕</button>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file && editingTile) {
+                          setImageLoading(true);
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            updateQuestion(editingTile.catIdx, editingTile.qIdx, 'image', ev.target?.result as string);
+                            setImageLoading(false);
+                          };
+                          reader.onerror = () => setImageLoading(false);
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="insert-image-btn"
+                      onMouseEnter={(e) => { e.currentTarget.style.color = '#7AB0D8'; e.currentTarget.style.background = '#EEF6FB'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = '#9EC8E8'; e.currentTarget.style.background = 'transparent'; }}
+                      style={{
+                        position: 'relative',
+                        borderRadius: 12,
+                        padding: '16px 24px',
+                        color: '#9EC8E8',
+                        fontFamily: 'var(--font-inter), Inter, sans-serif',
+                        fontWeight: 600,
+                        fontSize: '1rem',
+                        letterSpacing: '-0.01em',
+                        background: 'transparent',
+                        border: 'none',
+                        transition: 'color 0.15s, background 0.15s',
+                      }}
+                    >
+                      <svg aria-hidden style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}>
+                        <rect x="0.5" y="0.5" width="99%" height="99%" rx="11.5" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="4 4" />
+                      </svg>
+                      Insert image
+                    </button>
+                  </>
+                )}
                 </div>
-              ) : (
-                <>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file && editingTile) {
-                        setImageLoading(true);
-                        const reader = new FileReader();
-                        reader.onload = (ev) => {
-                          updateQuestion(editingTile.catIdx, editingTile.qIdx, 'image', ev.target?.result as string);
-                          setImageLoading(false);
-                        };
-                        reader.onerror = () => setImageLoading(false);
-                        reader.readAsDataURL(file);
-                      }
-                    }}
-                  />
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="px-4 py-2 rounded-xl text-xs font-medium text-gray-400 border-2 border-dashed border-gray-200 hover:border-blue-300 hover:text-blue-400 transition-colors"
-                  >
-                    + Add image
-                  </button>
-                </>
-              )}
+              </div>
             </div>
 
-            {/* Question textarea — large, centered */}
-            <textarea
-              value={editingQuestion.text}
-              onChange={(e) => updateQuestion(editingTile.catIdx, editingTile.qIdx, 'text', e.target.value)}
-              placeholder="Write the question here…"
-              className="w-full flex-1 text-center font-black bg-transparent outline-none resize-none placeholder-gray-300 leading-tight"
-              style={{
-                fontSize: 'clamp(1.8rem, 4vw, 3.5rem)',
-                color: '#222',
-                fontFamily: 'var(--font-inter), Inter, sans-serif',
-              }}
-            />
-
-            {/* Answer */}
-            <div className="mt-6 flex flex-col gap-1">
-              <label className="text-xs font-semibold uppercase tracking-wider opacity-40" style={{ color: '#222' }}>
-                Answer
-              </label>
+            {/* Answer: shaded bottom panel */}
+            <div
+              className="flex-shrink-0 flex items-center justify-center px-16"
+              style={{ background: '#EEF6FB', height: '33%' }}
+            >
               <input
                 type="text"
                 value={editingQuestion.answer}
                 onChange={(e) => updateQuestion(editingTile.catIdx, editingTile.qIdx, 'answer', e.target.value)}
-                placeholder="Answer…"
-                className="w-full text-base bg-black/5 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-200"
-                style={{ color: '#222' }}
+                placeholder="Add answer"
+                className="w-full text-center font-bold bg-transparent outline-none placeholder:text-[#C8DFF0]"
+                style={{
+                  fontSize: 'clamp(2rem, 5vw, 6rem)',
+                  color: '#2D6A9A',
+                  fontFamily: 'var(--font-inter), Inter, sans-serif',
+                }}
               />
             </div>
           </div>

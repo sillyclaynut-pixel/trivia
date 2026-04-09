@@ -98,7 +98,7 @@ export default function QuestionView({ gameState, onDismiss, onAnswerRevealed }:
     <div className="absolute bottom-0 left-0 right-0 flex items-center justify-center pb-6">
       <button
         onClick={handleReveal}
-        className="text-white font-semibold transition-opacity"
+        className="text-white font-semibold transition-opacity px-6 py-3"
         style={{ fontSize: 'clamp(0.85rem, 1.2vw, 1rem)', opacity: 0.7 }}
         onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
         onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.7')}
@@ -116,7 +116,7 @@ export default function QuestionView({ gameState, onDismiss, onAnswerRevealed }:
       </p>
       <button
         onClick={onDismiss}
-        className="absolute right-5 text-white opacity-60 hover:opacity-100 transition-opacity text-lg leading-none"
+        className="absolute right-3 text-white opacity-60 hover:opacity-100 transition-opacity text-lg leading-none p-3"
       >
         ✕
       </button>

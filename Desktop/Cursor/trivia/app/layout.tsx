@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Inter, Rubik } from "next/font/google";
+import { Agentation } from "agentation";
 import "./globals.css";
 
 const geist = Geist({
@@ -33,6 +34,7 @@ export default function RootLayout({
     <html lang="en" className={`${geist.variable} ${inter.variable} ${rubik.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-[family-name:var(--font-inter)]">
         {children}
+        {process.env.NODE_ENV === "development" && <Agentation />}
       </body>
     </html>
   );
